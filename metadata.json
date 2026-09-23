@@ -1,0 +1,6 @@
+{
+  "name": "Salim",
+  "description": "Production-grade native Android dialer featuring Apple motion language and Vercel visual restraint.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
