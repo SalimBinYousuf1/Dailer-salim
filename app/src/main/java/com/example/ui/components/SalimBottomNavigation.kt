@@ -42,7 +42,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.AccentGreen
+import com.example.ui.theme.AppleBlue
+import com.example.ui.theme.AppleGray
+import com.example.ui.theme.AppleRed
 
 enum class SalimTab(val label: String, val icon: ImageVector) {
     FAVORITES("Favorites", Icons.Default.Star),
@@ -69,14 +71,14 @@ fun SalimBottomNavigation(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
             )
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 8.dp),
+                    .height(52.dp)
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -98,7 +100,7 @@ fun SalimBottomNavigation(
                         verticalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .weight(1f)
-                            .height(52.dp)
+                            .height(50.dp)
                             .scale(scale)
                             .clickable(
                                 interactionSource = interactionSource,
@@ -119,7 +121,7 @@ fun SalimBottomNavigation(
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = null,
-                                tint = if (isSelected) AccentGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isSelected) AppleBlue else AppleGray,
                                 modifier = Modifier.size(24.dp)
                             )
 
@@ -127,7 +129,7 @@ fun SalimBottomNavigation(
                                 Box(
                                     modifier = Modifier
                                         .size(16.dp)
-                                        .background(AccentGreen, CircleShape),
+                                        .background(AppleRed, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -144,9 +146,9 @@ fun SalimBottomNavigation(
 
                         Text(
                             text = tab.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected) AccentGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                            color = if (isSelected) AppleBlue else AppleGray
                         )
                     }
                 }

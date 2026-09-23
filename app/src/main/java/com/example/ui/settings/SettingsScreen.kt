@@ -1,9 +1,10 @@
 package com.example.ui.settings
 
+import android.app.role.RoleManager
 import android.content.Context
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,33 +13,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Message
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.SimCard
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -55,13 +49,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.SalimApplication
 import com.example.data.model.CannedMessage
-import com.example.ui.components.SquircleCardShape
-import com.example.ui.components.SquircleSmallCardShape
-import com.example.ui.theme.AccentGreen
-import com.example.ui.theme.DestructiveRed
+import com.example.ui.components.AppleGroupedRow
+import com.example.ui.components.AppleGroupedSection
+import com.example.ui.components.AppleGroupedSwitchRow
+import com.example.ui.theme.AppleBlue
+import com.example.ui.theme.AppleGreen
+import com.example.ui.theme.AppleRed
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,453 +67,216 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as SalimApplication
-    val preferences = app.preferences
+    val prefs = app.preferences
     val db = app.database
     val telephonyRepo = app.telephonyRepository
     val scope = rememberCoroutineScope()
 
-    val vibrationEnabled by preferences.vibrationEnabled.collectAsStateWithLifecycle(initialValue = true)
-    val cannedMessages by db.cannedMessageDao().getAll().collectAsStateWithLifecycle(initialValue = emptyList())
-    val activeSubscriptions = remember { telephonyRepo.getActiveSubscriptions() }
+    var hapticsEnabled by remember { mutableStateOf(true) }
+    var dialTonesEnabled by remember { mutableStateOf(true) }
+    var blockUnknown by remember { mutableStateOf(false) }
+    var isDefaultDialer by remember { mutableStateOf(false) }
+    var blockedCount by remember { mutableStateOf(0) }
 
-    var showAddCannedDialog by remember { mutableStateOf(false) }
-    var newCannedText by remember { mutableStateOf("") }
-    var backupNotice by remember { mutableStateOf<String?>(null) }
-    var recordingDisclaimerNotice by remember { mutableStateOf(false) }
+    val cannedMessages by db.cannedMessageDao().getAll().collectAsStateWithLifecycle(initialValue = emptyList())
+    var editingMessage by remember { mutableStateOf<CannedMessage?>(null) }
+    var editingText by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        hapticsEnabled = prefs.vibrationEnabled.first()
+        dialTonesEnabled = prefs.dialTonesEnabled.first()
+        blockUnknown = prefs.blockUnknownNumbers.first()
+        isDefaultDialer = telephonyRepo.isDefaultDialer()
+        blockedCount = app.blockedNumbersRepository.getBlockedNumbers().size
+    }
+
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
+        // iOS Navigation Bar: [ Back (chevron + "Settings") ]
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("settings_back_button")
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = AppleBlue,
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            Text(
-                text = "Settings",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
         }
+
+        // Apple Large Title: "Settings"
+        Text(
+            text = "Settings",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 12.dp)
+        )
 
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .verticalScroll(scrollState)
         ) {
-            // Haptics & Feedback Section
-            SettingsSectionHeader(title = "HAPTICS & FEEDBACK")
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = SquircleCardShape,
-                modifier = Modifier.fillMaxWidth()
+            // Section 1: General Telephony
+            AppleGroupedSection(
+                title = "Phone & System Integration",
+                footer = "Salim handles native calls, screening, and system telecom intents."
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Vibration,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = "Tactile Haptics",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Keypad press and gesture feedback",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                AppleGroupedRow(
+                    title = "Default Phone App",
+                    subtitle = if (isDefaultDialer) "Salim is currently active" else "Not set as default",
+                    value = if (isDefaultDialer) "Active" else "Set Default",
+                    icon = Icons.Default.Phone,
+                    iconTint = Color.White,
+                    iconBackground = AppleGreen,
+                    showChevron = !isDefaultDialer,
+                    onClick = {
+                        if (!isDefaultDialer && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val roleManager = context.getSystemService(Context.ROLE_SERVICE) as? RoleManager
+                            val intent = roleManager?.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+                            if (intent != null) context.startActivity(intent)
+                        } else {
+                            Toast.makeText(context, "Salim is default dialer", Toast.LENGTH_SHORT).show()
                         }
                     }
+                )
 
-                    Switch(
-                        checked = vibrationEnabled,
-                        onCheckedChange = { scope.launch { preferences.setVibrationEnabled(it) } },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.surface,
-                            checkedTrackColor = AccentGreen
-                        )
+                AppleGroupedSwitchRow(
+                    title = "Silence Unknown Callers",
+                    subtitle = "Calls from numbers not in your contacts will be screened and silenced.",
+                    checked = blockUnknown,
+                    onCheckedChange = { checked ->
+                        blockUnknown = checked
+                        scope.launch { prefs.setBlockUnknownNumbers(checked) }
+                    },
+                    icon = Icons.Default.Block,
+                    iconTint = Color.White,
+                    iconBackground = AppleRed,
+                    showDivider = false
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Section 2: Haptics & Audio
+            AppleGroupedSection(
+                title = "Audio & Keypad Feedback"
+            ) {
+                AppleGroupedSwitchRow(
+                    title = "Keypad Audio Tones",
+                    subtitle = "Play DTMF dial tones while typing",
+                    checked = dialTonesEnabled,
+                    onCheckedChange = { checked ->
+                        dialTonesEnabled = checked
+                        scope.launch { prefs.setDialTonesEnabled(checked) }
+                    },
+                    icon = Icons.Default.VolumeUp,
+                    iconTint = Color.White,
+                    iconBackground = AppleBlue
+                )
+
+                AppleGroupedSwitchRow(
+                    title = "Keypad Haptic Feedback",
+                    subtitle = "Tactile vibration impulses on keypresses",
+                    checked = hapticsEnabled,
+                    onCheckedChange = { checked ->
+                        hapticsEnabled = checked
+                        scope.launch { prefs.setVibrationEnabled(checked) }
+                    },
+                    icon = Icons.Default.Vibration,
+                    iconTint = Color.White,
+                    iconBackground = Color(0xFFFF9500),
+                    showDivider = false
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Section 3: Call Screening & Blocking
+            AppleGroupedSection(
+                title = "Calls & Identification"
+            ) {
+                AppleGroupedRow(
+                    title = "Blocked Contacts",
+                    subtitle = "Manage blocked phone numbers",
+                    value = if (blockedCount > 0) "$blockedCount" else null,
+                    icon = Icons.Default.Block,
+                    iconTint = Color.White,
+                    iconBackground = AppleRed,
+                    showChevron = true,
+                    showDivider = false,
+                    onClick = onNavigateToBlocked
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Section 4: Respond With Text (Canned SMS)
+            AppleGroupedSection(
+                title = "Respond with Text",
+                footer = "These quick decline messages appear during incoming calls."
+            ) {
+                cannedMessages.forEachIndexed { index, msg ->
+                    AppleGroupedRow(
+                        title = msg.text,
+                        showChevron = true,
+                        showDivider = index < cannedMessages.size - 1,
+                        onClick = {
+                            editingMessage = msg
+                            editingText = msg.text
+                        }
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Dual-SIM Section (if applicable)
-            if (activeSubscriptions.size > 1) {
-                SettingsSectionHeader(title = "DUAL SIM PREFERENCES")
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = SquircleCardShape,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.SimCard,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Text(
-                                text = "Active SIMs Detected (${activeSubscriptions.size})",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "A SIM selection prompt will be shown for outgoing calls when no contact preference is set.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-            }
-
-            // Quick-Decline Canned SMS Messages
-            SettingsSectionHeader(title = "RESPOND WITH TEXT (QUICK DECLINE)")
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = SquircleCardShape,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    cannedMessages.forEach { msg ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "\"${msg.text}\"",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(
-                                onClick = { scope.launch { db.cannedMessageDao().deleteById(msg.id) } },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(SquircleSmallCardShape)
-                            .clickable { showAddCannedDialog = true }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            tint = AccentGreen,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Add Custom Message",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = AccentGreen
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Call Screening & Blocking
-            SettingsSectionHeader(title = "CALL SCREENING & BLOCKING")
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = SquircleCardShape,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToBlocked() }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Block,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = "Blocked Numbers",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Manage rejected callers and private numbers",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Call Recording (honest disclaimer)
-            SettingsSectionHeader(title = "CALL RECORDING")
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = SquircleCardShape,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { recordingDisclaimerNotice = true }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = "Call Recording Availability",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Subject to device OEM and regional telecom laws",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Backup & Restore
-            SettingsSectionHeader(title = "DATA & BACKUP")
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = SquircleCardShape,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        scope.launch {
-                            try {
-                                val speedDials = db.speedDialDao().getAllSpeedDials().first()
-                                val msgs = db.cannedMessageDao().getAll().first()
-                                val json = buildString {
-                                    append("{\n")
-                                    append("  \"speedDials\": [")
-                                    append(speedDials.joinToString(",") { "{\"key\":${it.digitKey},\"name\":\"${it.contactName}\",\"number\":\"${it.phoneNumber}\"}" })
-                                    append("],\n")
-                                    append("  \"cannedMessages\": [")
-                                    append(msgs.joinToString(",") { "\"${it.text.replace("\"", "\\\"")}\"" })
-                                    append("]\n")
-                                    append("}")
-                                }
-                                val file = File(context.cacheDir, "salim_settings_backup.json")
-                                file.writeText(json)
-                                backupNotice = "Settings and Speed Dials backed up locally to ${file.name}"
-                            } catch (e: Exception) {
-                                backupNotice = "Backup failed: ${e.message}"
-                            }
-                        }
-                    }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Backup,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = "Export Settings Backup",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Exports speed dials and quick decline messages as JSON",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 
-    // Add Canned Message Dialog
-    if (showAddCannedDialog) {
+    // Edit canned message dialog
+    editingMessage?.let { msg ->
         AlertDialog(
-            onDismissRequest = { showAddCannedDialog = false },
-            title = { Text("Add Quick-Decline Message") },
+            onDismissRequest = { editingMessage = null },
+            title = { Text("Edit Quick Message") },
             text = {
                 OutlinedTextField(
-                    value = newCannedText,
-                    onValueChange = { newCannedText = it },
-                    label = { Text("Message Text") },
-                    shape = SquircleSmallCardShape,
+                    value = editingText,
+                    onValueChange = { editingText = it },
+                    singleLine = false,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (newCannedText.isNotBlank()) {
-                            scope.launch {
-                                db.cannedMessageDao().insert(CannedMessage(text = newCannedText.trim()))
-                                newCannedText = ""
-                                showAddCannedDialog = false
-                            }
+                        scope.launch {
+                            db.cannedMessageDao().update(msg.copy(text = editingText.trim()))
+                            editingMessage = null
                         }
                     }
                 ) {
-                    Text("Add", color = AccentGreen)
+                    Text("Save", color = AppleBlue)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddCannedDialog = false }) {
-                    Text("Cancel")
+                TextButton(onClick = { editingMessage = null }) {
+                    Text("Cancel", color = AppleBlue)
                 }
             }
         )
     }
-
-    // Recording Disclaimer Dialog
-    if (recordingDisclaimerNotice) {
-        AlertDialog(
-            onDismissRequest = { recordingDisclaimerNotice = false },
-            title = { Text("Call Recording Notice") },
-            text = {
-                Text(
-                    "Call recording APIs on modern Android require system-level OEM privileges and compliance with local wiretapping and consent regulations. Salim Phone does not attempt unauthorized audio interception. Where your carrier and Android OS provide hardware recording integration, it will appear directly in the active call screen.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = 22.sp
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { recordingDisclaimerNotice = false }) {
-                    Text("Understood", color = AccentGreen)
-                }
-            }
-        )
-    }
-
-    // Backup Notice Dialog
-    backupNotice?.let { msg ->
-        AlertDialog(
-            onDismissRequest = { backupNotice = null },
-            title = { Text("Backup Status") },
-            text = { Text(msg) },
-            confirmButton = {
-                TextButton(onClick = { backupNotice = null }) {
-                    Text("OK")
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun SettingsSectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        letterSpacing = 1.sp,
-        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-    )
 }

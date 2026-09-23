@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -40,7 +41,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.AccentGreen
+import com.example.ui.theme.AppleDarkKeypad
+import com.example.ui.theme.AppleGreen
+import com.example.ui.theme.AppleKeypadPressedDark
+import com.example.ui.theme.AppleKeypadPressedLight
+import com.example.ui.theme.AppleLightGray
 
 data class KeypadKey(
     val mainDigit: Char,
@@ -49,9 +54,9 @@ data class KeypadKey(
     val speedDialKey: Int? = null
 )
 
-val KeypadMatrix = listOf(
+val AppleKeypadMatrix = listOf(
     listOf(
-        KeypadKey('1', " ", speedDialKey = 1),
+        KeypadKey('1', "", speedDialKey = 1),
         KeypadKey('2', "A B C", speedDialKey = 2),
         KeypadKey('3', "D E F", speedDialKey = 3)
     ),
@@ -73,7 +78,7 @@ val KeypadMatrix = listOf(
 )
 
 @Composable
-fun SalimKeypadButton(
+fun AppleKeypadButton(
     key: KeypadKey,
     onKeyPressed: (Char) -> Unit,
     onKeyLongPressed: ((KeypadKey) -> Unit)? = null,
@@ -81,26 +86,25 @@ fun SalimKeypadButton(
 ) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.90f else 1.0f,
+        targetValue = if (isPressed) 0.91f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            stiffness = Spring.StiffnessMedium
         ),
         label = "key_scale"
     )
 
-    val keyBackground = if (isPressed) {
-        MaterialTheme.colorScheme.outlineVariant
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
+    val isDark = MaterialTheme.colorScheme.background == Color.Black || MaterialTheme.colorScheme.surface == Color.Black
+
+    val defaultBg = if (isDark) AppleDarkKeypad else AppleLightGray
+    val pressedBg = if (isDark) AppleKeypadPressedDark else AppleKeypadPressedLight
 
     Box(
         modifier = modifier
             .size(76.dp)
             .scale(scale)
             .clip(CircleShape)
-            .background(keyBackground)
+            .background(if (isPressed) pressedBg else defaultBg)
             .pointerInput(key) {
                 detectTapGestures(
                     onPress = {
@@ -131,9 +135,10 @@ fun SalimKeypadButton(
         ) {
             Text(
                 text = key.mainDigit.toString(),
-                fontSize = 32.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 36.sp
             )
 
             if (key.letters.isNotBlank()) {
@@ -141,16 +146,16 @@ fun SalimKeypadButton(
                     text = key.letters,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 1.2.sp
+                    color = MaterialTheme.colorScheme.onSurface,
+                    letterSpacing = 1.6.sp
                 )
             } else if (key.mainDigit == '1') {
-                // Subtle symbol / icon space for voicemail key
+                // Apple voicemail glyph
                 Text(
                     text = "⚲",
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         }
@@ -172,19 +177,19 @@ fun SalimKeypad(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        KeypadMatrix.forEach { row ->
+        AppleKeypadMatrix.forEach { row ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 5.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 row.forEach { key ->
-                    SalimKeypadButton(
+                    AppleKeypadButton(
                         key = key,
                         onKeyPressed = { onDigitClicked(it) },
                         onKeyLongPressed = {
@@ -202,24 +207,24 @@ fun SalimKeypad(
         if (showActionRow) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Action row: Left spacer/action, Call button (singular focal point), Backspace
+            // Action row: Left blank spacer (76dp), Center Apple Green Call Button (76dp), Right Backspace (76dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left placeholder for symmetry and spacing discipline
+                // Left spacer for perfect Apple 3-column symmetry
                 Box(modifier = Modifier.size(76.dp))
 
-                // Primary Call Button (The singular focal point)
+                // Primary iOS Green Call Button
                 var callPressed by remember { mutableStateOf(false) }
                 val callScale by animateFloatAsState(
                     targetValue = if (callPressed) 0.90f else 1.0f,
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                        stiffness = Spring.StiffnessMedium
                     ),
                     label = "call_btn_scale"
                 )
@@ -229,7 +234,7 @@ fun SalimKeypad(
                         .size(76.dp)
                         .scale(callScale)
                         .clip(CircleShape)
-                        .background(AccentGreen)
+                        .background(AppleGreen)
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onPress = {
@@ -250,12 +255,12 @@ fun SalimKeypad(
                     Icon(
                         imageVector = Icons.Default.Call,
                         contentDescription = "Call",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(32.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(34.dp)
                     )
                 }
 
-                // Backspace button
+                // Right Backspace Button
                 Box(
                     modifier = Modifier.size(76.dp),
                     contentAlignment = Alignment.Center

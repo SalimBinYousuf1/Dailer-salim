@@ -6,10 +6,14 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
@@ -30,6 +36,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -40,8 +47,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -64,11 +70,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.CallLogEntry
 import com.example.data.model.CallType
 import com.example.ui.components.CallTypeIcon
-import com.example.ui.components.SquirclePillShape
 import com.example.ui.components.SquircleSheetShape
-import com.example.ui.components.SquircleSmallCardShape
-import com.example.ui.theme.AccentGreen
-import com.example.ui.theme.DestructiveRed
+import com.example.ui.theme.AppleBlue
+import com.example.ui.theme.AppleGreen
+import com.example.ui.theme.AppleRed
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,122 +91,127 @@ fun RecentsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Top Header Row with Apple segmented control & actions
+        // iOS Navigation Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Edit Button (Apple Blue)
             Text(
-                text = "Recents",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                text = if (uiState.isMultiSelectMode) "Done" else "Edit",
+                style = MaterialTheme.typography.bodyLarge,
+                color = AppleBlue,
+                fontWeight = FontWeight.Normal,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable { viewModel.toggleMultiSelectMode() }
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                    .testTag("recents_edit_button")
             )
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Export Button
-                IconButton(
-                    onClick = { viewModel.exportToCsv() },
-                    modifier = Modifier.testTag("export_recents_button")
+            // Centered iOS Segmented Picker: [ All | Missed ]
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF767680).copy(alpha = 0.12f))
+                    .padding(2.dp)
+            ) {
+                val isAllSelected = uiState.activeFilter == null
+                val isMissedSelected = uiState.activeFilter == CallType.MISSED
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isAllSelected) MaterialTheme.colorScheme.surface else Color.Transparent)
+                        .clickable { viewModel.setFilter(null) }
+                        .padding(horizontal = 18.dp, vertical = 4.dp)
+                        .testTag("filter_all"),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Download,
-                        contentDescription = "Export CSV",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    Text(
+                        text = "All",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isAllSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Multi-select Edit toggle
-                Text(
-                    text = if (uiState.isMultiSelectMode) "Done" else "Edit",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = AccentGreen,
-                    fontWeight = FontWeight.SemiBold,
+                Box(
                     modifier = Modifier
-                        .clip(SquirclePillShape)
-                        .clickable { viewModel.toggleMultiSelectMode() }
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                        .testTag("recents_edit_button")
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isMissedSelected) MaterialTheme.colorScheme.surface else Color.Transparent)
+                        .clickable { viewModel.setFilter(CallType.MISSED) }
+                        .padding(horizontal = 18.dp, vertical = 4.dp)
+                        .testTag("filter_missed"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Missed",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isMissedSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            // Export CSV action
+            IconButton(
+                onClick = { viewModel.exportToCsv() },
+                modifier = Modifier.size(32.dp).testTag("export_recents_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = "Export CSV",
+                    tint = AppleBlue,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        // Segmented Filter Tabs: All, Missed, Outgoing, Incoming
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp)
-                .clip(SquirclePillShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(3.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            val filters = listOf(
-                "All" to null,
-                "Missed" to CallType.MISSED,
-                "Outgoing" to CallType.OUTGOING,
-                "Incoming" to CallType.INCOMING
-            )
+        // Apple Large Title: "Recents"
+        Text(
+            text = "Recents",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 8.dp)
+        )
 
-            filters.forEach { (label, type) ->
-                val isSelected = uiState.activeFilter == type
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(SquirclePillShape)
-                        .background(if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { viewModel.setFilter(type) }
-                        .padding(vertical = 6.dp)
-                        .testTag("filter_${label.lowercase()}"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
-            }
-        }
-
-        // Multi-select action bar
+        // Multi-select bulk action bar
         AnimatedVisibility(visible = uiState.isMultiSelectMode) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = { viewModel.selectAll() }) {
-                    Text("Select All", color = AccentGreen)
+                    Text("Select All", color = AppleBlue)
                 }
 
                 Text(
                     text = "${uiState.selectedEntryIds.size} Selected",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 TextButton(
                     onClick = { viewModel.requestBulkDelete() },
                     enabled = uiState.selectedEntryIds.isNotEmpty(),
-                    colors = ButtonDefaults.textButtonColors(contentColor = DestructiveRed)
+                    colors = ButtonDefaults.textButtonColors(contentColor = AppleRed)
                 ) {
                     Text("Delete")
                 }
             }
         }
 
-        // Call Log List or Typographic Empty State
+        // Call Log List
         if (uiState.callLogs.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -212,7 +222,7 @@ fun RecentsScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "No Call History",
+                        text = "No Recents",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -227,31 +237,31 @@ fun RecentsScreen(
             }
         } else {
             val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-            val dateFormat = SimpleDateFormat("MMM d", Locale.getDefault())
+            val dateFormat = SimpleDateFormat("M/d/yy", Locale.getDefault())
 
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
             ) {
                 items(uiState.callLogs, key = { it.id }) { entry ->
                     val isSelected = uiState.selectedEntryIds.contains(entry.id)
-                    CallLogRow(
+                    AppleCallLogRow(
                         entry = entry,
                         timeFormat = timeFormat,
                         dateFormat = dateFormat,
                         isMultiSelect = uiState.isMultiSelectMode,
                         isSelected = isSelected,
                         onClick = { viewModel.onEntryClicked(entry) },
-                        onLongClick = { viewModel.onEntryLongPressed(entry) }
+                        onInfoClick = { viewModel.onEntryLongPressed(entry) },
+                        onDeleteClick = { viewModel.requestDeleteSingle(entry) }
                     )
                 }
             }
         }
     }
 
-    // Long Press Bottom Sheet
+    // iOS Contact / Call Detail Sheet
     uiState.selectedEntryForSheet?.let { entry ->
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
@@ -264,99 +274,162 @@ fun RecentsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 36.dp)
+                    .padding(bottom = 36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Centered large avatar
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE5E5EA)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = (entry.name ?: entry.number).firstOrNull()?.uppercase() ?: "#",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Text(
                     text = entry.name ?: entry.number,
                     style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+
                 if (entry.name != null) {
                     Text(
                         text = entry.number,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                } else {
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Call
-                BottomSheetAction(
-                    icon = Icons.Default.Call,
-                    text = "Call ${entry.number}",
-                    onClick = {
-                        viewModel.dismissSheet()
-                        viewModel.onEntryClicked(entry)
-                    }
-                )
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Message
-                BottomSheetAction(
-                    icon = Icons.Default.Message,
-                    text = "Send Message",
-                    onClick = {
-                        viewModel.dismissSheet()
-                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${entry.number}"))
-                        context.startActivity(intent)
-                    }
-                )
+                // Apple 4 Action Pills Row: message, call, video, info
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    AppleActionPill(
+                        icon = Icons.Default.Message,
+                        label = "message",
+                        onClick = {
+                            viewModel.dismissSheet()
+                            val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${entry.number}"))
+                            context.startActivity(intent)
+                        }
+                    )
+                    AppleActionPill(
+                        icon = Icons.Default.Call,
+                        label = "call",
+                        onClick = {
+                            viewModel.dismissSheet()
+                            viewModel.onEntryClicked(entry)
+                        }
+                    )
+                    AppleActionPill(
+                        icon = Icons.Default.PersonAdd,
+                        label = "add",
+                        onClick = {
+                            viewModel.dismissSheet()
+                            onAddContactClicked(entry.number)
+                        }
+                    )
+                    AppleActionPill(
+                        icon = Icons.Default.ContentCopy,
+                        label = "copy",
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("Number", entry.number))
+                            viewModel.dismissSheet()
+                        }
+                    )
+                }
 
-                // Add to contacts
-                BottomSheetAction(
-                    icon = Icons.Default.PersonAdd,
-                    text = "Add / View Contact",
-                    onClick = {
-                        viewModel.dismissSheet()
-                        onAddContactClicked(entry.number)
-                    }
-                )
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // Copy Number
-                BottomSheetAction(
-                    icon = Icons.Default.ContentCopy,
-                    text = "Copy Number",
-                    onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                        clipboard?.setPrimaryClip(ClipData.newPlainText("Number", entry.number))
-                        viewModel.dismissSheet()
-                    }
-                )
+                // Block Caller & Delete
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.blockNumber(entry.number) }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Block,
+                                contentDescription = null,
+                                tint = AppleRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Text(
+                                text = "Block this Caller",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = AppleRed,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
 
-                // Block Number
-                BottomSheetAction(
-                    icon = Icons.Default.Block,
-                    text = "Block Number",
-                    onClick = {
-                        viewModel.blockNumber(entry.number)
-                    }
-                )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 50.dp)
+                                .height(0.5.dp)
+                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                        )
 
-                // Delete Entry
-                BottomSheetAction(
-                    icon = Icons.Default.Delete,
-                    text = "Delete From Call Log",
-                    isDestructive = true,
-                    onClick = {
-                        viewModel.requestDeleteSingle(entry)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.requestDeleteSingle(entry) }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = AppleRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Text(
+                                text = "Delete from Recents",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = AppleRed,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
                     }
-                )
+                }
             }
         }
     }
 
-    // Single Delete Confirmation Dialog
+    // Delete confirmation dialogs
     if (uiState.showDeleteConfirmDialog && uiState.selectedEntryForSheet != null) {
         val entry = uiState.selectedEntryForSheet!!
         AlertDialog(
             onDismissRequest = { viewModel.cancelDeleteSingle() },
-            title = { Text("Delete Call Log") },
-            text = { Text("Are you sure you want to delete call history for ${entry.name ?: entry.number}?") },
+            title = { Text("Delete Call") },
+            text = { Text("Delete call record for ${entry.name ?: entry.number}?") },
             confirmButton = {
                 TextButton(
                     onClick = { viewModel.confirmDeleteSingle() },
-                    colors = ButtonDefaults.textButtonColors(contentColor = DestructiveRed)
+                    colors = ButtonDefaults.textButtonColors(contentColor = AppleRed)
                 ) {
                     Text("Delete")
                 }
@@ -369,17 +442,16 @@ fun RecentsScreen(
         )
     }
 
-    // Bulk Delete Confirmation Dialog
     if (uiState.showBulkDeleteConfirmDialog) {
         val count = uiState.selectedEntryIds.size
         AlertDialog(
             onDismissRequest = { viewModel.cancelBulkDelete() },
-            title = { Text("Delete $count Entries") },
-            text = { Text("Are you sure you want to permanently delete $count call log entries?") },
+            title = { Text("Delete $count Calls") },
+            text = { Text("Are you sure you want to permanently delete $count calls from history?") },
             confirmButton = {
                 TextButton(
                     onClick = { viewModel.confirmBulkDelete() },
-                    colors = ButtonDefaults.textButtonColors(contentColor = DestructiveRed)
+                    colors = ButtonDefaults.textButtonColors(contentColor = AppleRed)
                 ) {
                     Text("Delete $count")
                 }
@@ -392,12 +464,11 @@ fun RecentsScreen(
         )
     }
 
-    // Exported file notice
     uiState.exportedFile?.let { file ->
         AlertDialog(
             onDismissRequest = { viewModel.clearExportNotice() },
-            title = { Text("Call Log Exported") },
-            text = { Text("Exported ${file.name} to local storage cache successfully.") },
+            title = { Text("History Exported") },
+            text = { Text("Exported ${file.name} to local storage.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.clearExportNotice() }) {
                     Text("OK")
@@ -407,69 +478,61 @@ fun RecentsScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CallLogRow(
+private fun AppleCallLogRow(
     entry: CallLogEntry,
     timeFormat: SimpleDateFormat,
     dateFormat: SimpleDateFormat,
     isMultiSelect: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onInfoClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val date = Date(entry.timestamp)
     val formattedTime = timeFormat.format(date)
-    val formattedDate = dateFormat.format(date)
+    val isMissed = entry.type == CallType.MISSED
 
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
+            .clickable { onClick() }
             .testTag("call_log_${entry.id}")
             .semantics {
-                contentDescription = "${entry.type.name} call from ${entry.name ?: entry.number}, $formattedDate $formattedTime"
+                contentDescription = "${entry.name ?: entry.number}, $formattedTime"
             }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isMultiSelect) {
                 Icon(
                     imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                    contentDescription = if (isSelected) "Selected" else "Not selected",
-                    tint = if (isSelected) AccentGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                    contentDescription = null,
+                    tint = if (isSelected) AppleBlue else Color(0xFFC7C7CC),
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(22.dp)
                         .padding(end = 4.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
             }
-
-            CallTypeIcon(type = entry.type, size = 18.dp)
-
-            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = entry.name ?: entry.number,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = if (entry.type == CallType.MISSED) DestructiveRed else MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (isMissed) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (isMissed) AppleRed else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
 
                     if (entry.count > 1) {
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "(${entry.count})",
                             style = MaterialTheme.typography.bodyMedium,
@@ -478,56 +541,84 @@ private fun CallLogRow(
                     }
                 }
 
-                if (entry.name != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CallTypeIcon(type = entry.type, size = 13.dp)
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = entry.number,
+                        text = if (entry.name != null) "mobile" else entry.type.name.lowercase(),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Tabular figures for timestamp to prevent jitter
+            // Timestamp (Apple Gray)
             Text(
                 text = formattedTime,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = FontFamily.Default
-                ),
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Default),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // iOS ⓘ info button (Apple Blue)
+            IconButton(
+                onClick = onInfoClick,
+                modifier = Modifier
+                    .size(28.dp)
+                    .testTag("info_button_${entry.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Details",
+                    tint = AppleBlue,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
+
+        // Apple inset divider
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp)
+                .height(0.5.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        )
     }
 }
 
 @Composable
-private fun BottomSheetAction(
+private fun AppleActionPill(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    onClick: () -> Unit,
-    isDestructive: Boolean = false
+    label: String,
+    onClick: () -> Unit
 ) {
-    Row(
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(SquircleSmallCardShape)
             .clickable { onClick() }
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(6.dp)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (isDestructive) DestructiveRed else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = AppleBlue,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (isDestructive) DestructiveRed else MaterialTheme.colorScheme.onSurface,
-            fontWeight = if (isDestructive) FontWeight.SemiBold else FontWeight.Normal
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

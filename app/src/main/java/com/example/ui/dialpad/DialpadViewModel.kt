@@ -8,8 +8,8 @@ import com.example.SalimApplication
 import com.example.data.model.ContactItem
 import com.example.data.model.SimSubscriptionInfo
 import com.example.data.model.SpeedDialEntry
+import com.example.util.T9Search
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +20,7 @@ data class DialpadUiState(
     val enteredNumber: String = "",
     val formattedNumber: String = "",
     val matchedContacts: List<ContactItem> = emptyList(),
+    val t9Matches: List<T9Search.T9MatchResult> = emptyList(),
     val isDefaultDialer: Boolean = true,
     val activeSubscriptions: List<SimSubscriptionInfo> = emptyList(),
     val showSimPickerForNumber: String? = null,
@@ -37,11 +38,19 @@ class DialpadViewModel(application: Application) : AndroidViewModel(application)
     private val _uiState = MutableStateFlow(DialpadUiState())
     val uiState: StateFlow<DialpadUiState> = _uiState.asStateFlow()
 
+    private var allContactsCache: List<ContactItem> = emptyList()
     private var searchJob: Job? = null
 
     init {
         refreshState()
         observeSpeedDials()
+        preloadContacts()
+    }
+
+    private fun preloadContacts() {
+        viewModelScope.launch {
+            allContactsCache = contactsRepo.getAllContacts()
+        }
     }
 
     fun refreshState() {
@@ -49,6 +58,7 @@ class DialpadViewModel(application: Application) : AndroidViewModel(application)
             isDefaultDialer = telephonyRepo.isDefaultDialer(),
             activeSubscriptions = telephonyRepo.getActiveSubscriptions()
         )
+        preloadContacts()
     }
 
     private fun observeSpeedDials() {
@@ -108,14 +118,22 @@ class DialpadViewModel(application: Application) : AndroidViewModel(application)
     private fun searchContacts(query: String) {
         searchJob?.cancel()
         if (query.isBlank()) {
-            _uiState.value = _uiState.value.copy(matchedContacts = emptyList())
+            _uiState.value = _uiState.value.copy(
+                matchedContacts = emptyList(),
+                t9Matches = emptyList()
+            )
             return
         }
 
         searchJob = viewModelScope.launch {
-            delay(100) // Debounce query
-            val matches = contactsRepo.getAllContacts(searchQuery = query)
-            _uiState.value = _uiState.value.copy(matchedContacts = matches.take(5))
+            // Instant in-memory T9 Predictive search
+            val t9Results = T9Search.searchContacts(query, allContactsCache)
+            val directMatches = contactsRepo.getAllContacts(searchQuery = query)
+
+            _uiState.value = _uiState.value.copy(
+                t9Matches = t9Results.take(6),
+                matchedContacts = directMatches.take(5)
+            )
         }
     }
 
@@ -145,7 +163,6 @@ class DialpadViewModel(application: Application) : AndroidViewModel(application)
     fun initiateCall(number: String) {
         val subs = _uiState.value.activeSubscriptions
         if (subs.size > 1) {
-            // Check if contact has preferred SIM in DB
             viewModelScope.launch {
                 val pref = db.contactSimPreferenceDao().getPreference(number)
                 if (pref != null) {

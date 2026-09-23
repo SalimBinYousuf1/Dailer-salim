@@ -1,6 +1,6 @@
 {
   "name": "Salim",
-  "description": "Production-grade native Android dialer featuring Apple motion language and Vercel visual restraint.",
+  "description": "Production-grade native Android dialer featuring Apple iOS design language, sleek minimalist aesthetics, T9 smart dialing, and real telephony integration.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -21,10 +21,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,22 +37,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.data.model.ContactItem
 import com.example.ui.components.DefaultDialerBanner
 import com.example.ui.components.SalimKeypad
 import com.example.ui.components.SimPickerBottomSheet
-import com.example.ui.components.SquircleAvatarShape
-import com.example.ui.components.SquircleSmallCardShape
-import com.example.ui.theme.AccentGreen
+import com.example.ui.theme.AppleBlue
+import com.example.ui.theme.AppleGreen
+import com.example.ui.theme.AppleLightGray
+import com.example.util.T9Search
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -66,7 +72,7 @@ fun DialpadScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
+            .background(MaterialTheme.colorScheme.background),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Default Dialer Warning Banner if not set
@@ -75,26 +81,32 @@ fun DialpadScreen(
             onRequestDefault = onRequestDefaultDialer
         )
 
-        // Matched contact search preview or Number Display area
+        // Upper Section: T9 Matches, Number Display, Add Number button
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Bottom
         ) {
-            if (uiState.matchedContacts.isNotEmpty()) {
-                LazyColumn(
+            // T9 Matches Strip (Apple sleek pill row)
+            AnimatedVisibility(
+                visible = uiState.t9Matches.isNotEmpty(),
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(110.dp)
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    items(uiState.matchedContacts, key = { it.id }) { contact ->
-                        MatchedContactRow(
-                            contact = contact,
+                    items(uiState.t9Matches, key = { it.contact.id }) { match ->
+                        T9MatchPill(
+                            match = match,
                             onClick = {
-                                val number = contact.phoneNumbers.firstOrNull() ?: uiState.enteredNumber
+                                val number = match.matchedNumber ?: match.contact.phoneNumbers.firstOrNull() ?: uiState.enteredNumber
                                 viewModel.initiateCall(number)
                             }
                         )
@@ -102,11 +114,11 @@ fun DialpadScreen(
                 }
             }
 
-            // Display formatted entered phone number
+            // Display entered phone number with Apple typography
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
                     .combinedClickable(
                         onClick = {},
                         onLongClick = {
@@ -134,9 +146,9 @@ fun DialpadScreen(
                     text = displayText,
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontFamily = FontFamily.Default,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = (-0.5).sp
                     ),
-                    fontSize = if (displayText.length > 12) 28.sp else 34.sp,
+                    fontSize = if (displayText.length > 13) 26.sp else if (displayText.length > 9) 32.sp else 38.sp,
                     fontWeight = FontWeight.Light,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
@@ -145,38 +157,36 @@ fun DialpadScreen(
                 )
             }
 
-            // Add to contacts affordance
-            AnimatedVisibility(
-                visible = uiState.enteredNumber.isNotBlank(),
-                enter = fadeIn(),
-                exit = fadeOut()
+            // "Add Number" prompt (Apple Blue)
+            Box(
+                modifier = Modifier
+                    .height(36.dp)
+                    .padding(bottom = 6.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier
-                        .clip(SquircleSmallCardShape)
-                        .clickable { onAddContactClicked(uiState.enteredNumber) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                        .testTag("add_number_button"),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PersonAdd,
-                        contentDescription = "Add Contact",
-                        tint = AccentGreen,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Add Number",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = AccentGreen,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                if (uiState.enteredNumber.isNotBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onAddContactClicked(uiState.enteredNumber) }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .testTag("add_number_button"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Add Number",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AppleBlue,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
         }
 
-        // The Keypad with squircle keys and single primary Call button
+        // Apple 76dp circular keypad
         SalimKeypad(
             onDigitClicked = { viewModel.onDigitPressed(it) },
             onSpeedDialTriggered = { viewModel.onSpeedDialTriggered(it) },
@@ -202,60 +212,70 @@ fun DialpadScreen(
 }
 
 @Composable
-private fun MatchedContactRow(
-    contact: ContactItem,
+private fun T9MatchPill(
+    match: T9Search.T9MatchResult,
     onClick: () -> Unit
 ) {
+    val contact = match.contact
+    val name = contact.displayName
+
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = SquircleSmallCardShape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 3.dp)
-            .clip(SquircleSmallCardShape)
+            .padding(horizontal = 4.dp)
             .clickable { onClick() }
-            .testTag("matched_contact_${contact.id}")
+            .testTag("t9_match_${contact.id}")
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(SquircleAvatarShape)
-                    .background(MaterialTheme.colorScheme.outlineVariant),
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(AppleLightGray),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = contact.displayName.firstOrNull()?.uppercase() ?: "#",
+                    text = name.firstOrNull()?.uppercase() ?: "#",
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp
+                    fontSize = 11.sp,
+                    color = Color.Black
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = contact.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = contact.phoneNumbers.firstOrNull() ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            val annotatedName = buildAnnotatedString {
+                if (match.matchedInName && match.matchStartIndex in 0..name.length && match.matchEndIndex in match.matchStartIndex..name.length) {
+                    append(name.substring(0, match.matchStartIndex))
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold, color = AppleBlue)) {
+                        append(name.substring(match.matchStartIndex, match.matchEndIndex))
+                    }
+                    append(name.substring(match.matchEndIndex))
+                } else {
+                    append(name)
+                }
             }
+
+            Text(
+                text = annotatedName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
+            )
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            Icon(
+                imageVector = Icons.Default.Call,
+                contentDescription = "Call",
+                tint = AppleGreen,
+                modifier = Modifier.size(14.dp)
+            )
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.ui.blocked
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,14 +25,11 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,23 +43,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.SalimApplication
 import com.example.data.repository.BlockedNumberItem
-import com.example.ui.components.SquircleCardShape
-import com.example.ui.components.SquircleSmallCardShape
-import com.example.ui.theme.AccentGreen
-import com.example.ui.theme.DestructiveRed
+import com.example.ui.components.AppleGroupedSection
+import com.example.ui.components.AppleGroupedSwitchRow
+import com.example.ui.theme.AppleBlue
+import com.example.ui.theme.AppleRed
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlockedNumbersScreen(
     onBack: () -> Unit,
@@ -69,7 +67,7 @@ fun BlockedNumbersScreen(
     val context = LocalContext.current
     val app = context.applicationContext as SalimApplication
     val blockedRepo = app.blockedNumbersRepository
-    val preferences = app.preferences
+    val prefs = app.preferences
     val scope = rememberCoroutineScope()
 
     val blockedList = remember { mutableStateListOf<BlockedNumberItem>() }
@@ -82,7 +80,7 @@ fun BlockedNumbersScreen(
         scope.launch {
             blockedList.clear()
             blockedList.addAll(blockedRepo.getBlockedNumbers())
-            blockUnknown = preferences.blockUnknownNumbers.first()
+            blockUnknown = prefs.blockUnknownNumbers.first()
         }
     }
 
@@ -93,95 +91,67 @@ fun BlockedNumbersScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
+        // iOS Navigation Bar: [ Back (left) | + Add (right) ]
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("blocked_back_button")
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = AppleBlue,
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            Text(
-                text = "Blocked Numbers",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(
+
+            TextButton(
                 onClick = { showAddDialog = true },
-                modifier = Modifier.testTag("add_blocked_number_button")
+                modifier = Modifier.testTag("add_blocked_button")
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Block Number",
-                    tint = AccentGreen
-                )
+                Text("Add New...", color = AppleBlue, style = MaterialTheme.typography.bodyLarge)
             }
         }
 
-        // Block Unknown / Private numbers toggle card
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = SquircleCardShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Block Unknown Callers",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Automatically decline calls from unknown or private numbers.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Switch(
-                    checked = blockUnknown,
-                    onCheckedChange = { checked ->
-                        blockUnknown = checked
-                        scope.launch { preferences.setBlockUnknownNumbers(checked) }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.surface,
-                        checkedTrackColor = AccentGreen
-                    )
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
+        // Apple Large Title: "Blocked"
         Text(
-            text = "SYSTEM BLOCKED NUMBERS",
-            style = MaterialTheme.typography.labelSmall,
+            text = "Blocked Contacts",
+            style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 12.dp)
         )
 
+        // Switch section: Silence unknown callers
+        AppleGroupedSection(
+            footer = "You will not receive phone calls, messages, or FaceTime from people on the blocked list."
+        ) {
+            AppleGroupedSwitchRow(
+                title = "Silence Unknown Callers",
+                subtitle = "Screen calls from numbers not saved in contacts",
+                checked = blockUnknown,
+                onCheckedChange = { checked ->
+                    blockUnknown = checked
+                    scope.launch { prefs.setBlockUnknownNumbers(checked) }
+                },
+                icon = Icons.Default.Block,
+                iconTint = Color.White,
+                iconBackground = AppleRed,
+                showDivider = false
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Blocked Numbers List (Apple Inset Grouped)
         if (blockedList.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -190,79 +160,61 @@ fun BlockedNumbersScreen(
                     .padding(32.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "No Blocked Numbers",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Numbers you block will not be able to call you.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = "No Blocked Contacts",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+            AppleGroupedSection(
+                title = "Blocked Numbers (${blockedList.size})"
             ) {
-                items(blockedList, key = { it.id }) { item ->
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
+                blockedList.forEachIndexed { index, item ->
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                            .testTag("blocked_item_${item.id}")
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
+                        Text(
+                            text = item.number,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        TextButton(
+                            onClick = { itemToDelete = item },
+                            colors = ButtonDefaults.textButtonColors(contentColor = AppleRed)
+                        ) {
+                            Text("Unblock")
+                        }
+                    }
+
+                    if (index < blockedList.size - 1) {
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Block,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = item.number,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            IconButton(onClick = { itemToDelete = item }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Unblock",
-                                    tint = DestructiveRed,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                                .padding(start = 16.dp)
+                                .height(0.5.dp)
+                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                        )
                     }
                 }
             }
         }
     }
 
-    // Add Block Dialog
+    // Add Blocked Number Dialog
     if (showAddDialog) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = { Text("Block a Number") },
+            onDismissRequest = {
+                showAddDialog = false
+                newNumberToBlock = ""
+            },
+            title = { Text("Block Number") },
             text = {
                 OutlinedTextField(
                     value = newNumberToBlock,
@@ -270,56 +222,63 @@ fun BlockedNumbersScreen(
                     label = { Text("Phone Number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
-                    shape = SquircleSmallCardShape,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("block_number_input")
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (newNumberToBlock.isNotBlank()) {
+                        val num = newNumberToBlock.trim()
+                        if (num.isNotBlank()) {
                             scope.launch {
-                                blockedRepo.blockNumber(newNumberToBlock.trim())
-                                newNumberToBlock = ""
-                                showAddDialog = false
+                                blockedRepo.blockNumber(num)
                                 refresh()
+                                showAddDialog = false
+                                newNumberToBlock = ""
                             }
                         }
                     }
                 ) {
-                    Text("Block", color = DestructiveRed)
+                    Text("Block", color = AppleRed)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("Cancel")
+                TextButton(
+                    onClick = {
+                        showAddDialog = false
+                        newNumberToBlock = ""
+                    }
+                ) {
+                    Text("Cancel", color = AppleBlue)
                 }
             }
         )
     }
 
-    // Unblock Confirmation Dialog
+    // Unblock confirmation
     itemToDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { itemToDelete = null },
-            title = { Text("Unblock Number") },
-            text = { Text("Are you sure you want to unblock ${item.number}?") },
+            title = { Text("Unblock Contact") },
+            text = { Text("Unblock calls and messages from ${item.number}?") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         scope.launch {
                             blockedRepo.unblockNumber(item.id)
-                            itemToDelete = null
                             refresh()
+                            itemToDelete = null
                         }
                     }
                 ) {
-                    Text("Unblock", color = AccentGreen)
+                    Text("Unblock", color = AppleBlue)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { itemToDelete = null }) {
-                    Text("Cancel")
+                    Text("Cancel", color = AppleBlue)
                 }
             }
         )

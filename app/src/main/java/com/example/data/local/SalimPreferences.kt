@@ -16,6 +16,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class SalimPreferences(private val context: Context) {
 
     private val KEY_VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
+    private val KEY_DIAL_TONES_ENABLED = booleanPreferencesKey("dial_tones_enabled")
     private val KEY_BLOCK_UNKNOWN = booleanPreferencesKey("block_unknown_numbers")
     private val KEY_DEFAULT_SIM_ID = intPreferencesKey("default_sim_subscription_id")
     private val KEY_CALL_RECORDING_ENABLED = booleanPreferencesKey("call_recording_enabled")
@@ -23,6 +24,10 @@ class SalimPreferences(private val context: Context) {
 
     val vibrationEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_VIBRATION_ENABLED] ?: true
+    }
+
+    val dialTonesEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_DIAL_TONES_ENABLED] ?: true
     }
 
     val blockUnknownNumbers: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -43,6 +48,10 @@ class SalimPreferences(private val context: Context) {
 
     suspend fun setVibrationEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[KEY_VIBRATION_ENABLED] = enabled }
+    }
+
+    suspend fun setDialTonesEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[KEY_DIAL_TONES_ENABLED] = enabled }
     }
 
     suspend fun setBlockUnknownNumbers(enabled: Boolean) {

@@ -1,35 +1,40 @@
 package com.example.ui.voicemail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Voicemail
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.components.SquirclePillShape
-import com.example.ui.theme.AccentGreen
+import com.example.ui.components.AppleGroupedSection
+import com.example.ui.theme.AppleBlue
+import com.example.ui.theme.AppleGreen
 
 @Composable
 fun VoicemailScreen(
@@ -40,30 +45,24 @@ fun VoicemailScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
+        // Apple Large Title: "Voicemail"
+        Text(
+            text = "Voicemail",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 16.dp)
+        )
+
         Column(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxWidth()
-                .padding(top = 12.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            Text(
-                text = "Voicemail",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        // Center content: Honest fallback, never fake inbox
-        Column(
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
@@ -76,7 +75,7 @@ fun VoicemailScreen(
                     imageVector = Icons.Default.Voicemail,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(44.dp)
                 )
             }
 
@@ -93,42 +92,47 @@ fun VoicemailScreen(
 
             Text(
                 text = if (voicemailNumber != null) {
-                    "Dial $voicemailNumber to listen to your voicemail messages."
+                    "Your carrier voicemail access number is $voicemailNumber."
                 } else {
-                    "Visual voicemail is managed by your mobile carrier. Tap below to call your carrier voicemail box directly."
+                    "Connect directly to your carrier's automated voicemail service to listen to new and saved messages."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                lineHeight = 22.sp
+                lineHeight = 20.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
-        }
 
-        // Bottom singular action button
-        Button(
-            onClick = onCallVoicemail,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AccentGreen,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ),
-            shape = SquirclePillShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-                .padding(bottom = 16.dp)
-                .testTag("call_voicemail_button")
-        ) {
-            Icon(
-                imageVector = Icons.Default.Call,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.size(10.dp))
-            Text(
-                text = "Call Voicemail",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Apple Green Call Voicemail Pill
+            Surface(
+                color = AppleGreen,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable { onCallVoicemail() }
+                    .testTag("call_voicemail_button")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Call,
+                        contentDescription = "Call",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Call Voicemail",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
         }
     }
 }

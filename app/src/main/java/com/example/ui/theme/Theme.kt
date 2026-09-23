@@ -5,43 +5,44 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = AccentGreenDark,
-    onPrimary = SurfaceDark,
-    primaryContainer = SurfaceSecondaryDark,
-    onPrimaryContainer = TextPrimaryDark,
-    secondary = TextSecondaryDark,
-    onSecondary = SurfaceDark,
-    background = SurfaceBackgroundDark,
-    onBackground = TextPrimaryDark,
-    surface = SurfaceDark,
-    onSurface = TextPrimaryDark,
-    surfaceVariant = SurfaceSecondaryDark,
-    onSurfaceVariant = TextSecondaryDark,
-    outline = BorderDark,
-    outlineVariant = SurfaceTertiaryDark,
-    error = DestructiveRedDark,
-    onError = SurfaceDark
+    primary = AppleGreen,
+    onPrimary = Color.White,
+    primaryContainer = AppleSecondaryBackgroundDark,
+    onPrimaryContainer = AppleLabelPrimaryDark,
+    secondary = AppleBlue,
+    onSecondary = Color.White,
+    background = AppleSystemBackgroundDark,
+    onBackground = AppleLabelPrimaryDark,
+    surface = AppleSystemBackgroundDark,
+    onSurface = AppleLabelPrimaryDark,
+    surfaceVariant = AppleSecondaryBackgroundDark,
+    onSurfaceVariant = AppleLabelSecondaryDark,
+    outline = AppleOpaqueSeparatorDark,
+    outlineVariant = AppleSeparatorDark,
+    error = AppleRed,
+    onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = AccentGreen,
-    onPrimary = SurfaceLight,
-    primaryContainer = SurfaceSecondaryLight,
-    onPrimaryContainer = TextPrimaryLight,
-    secondary = TextSecondaryLight,
-    onSecondary = SurfaceLight,
-    background = SurfaceBackgroundLight,
-    onBackground = TextPrimaryLight,
-    surface = SurfaceLight,
-    onSurface = TextPrimaryLight,
-    surfaceVariant = SurfaceSecondaryLight,
-    onSurfaceVariant = TextSecondaryLight,
-    outline = BorderLight,
-    outlineVariant = SurfaceTertiaryLight,
-    error = DestructiveRed,
-    onError = SurfaceLight
+    primary = AppleGreen,
+    onPrimary = Color.White,
+    primaryContainer = AppleSecondaryBackgroundLight,
+    onPrimaryContainer = AppleLabelPrimaryLight,
+    secondary = AppleBlue,
+    onSecondary = Color.White,
+    background = AppleSystemBackgroundLight,
+    onBackground = AppleLabelPrimaryLight,
+    surface = AppleSystemBackgroundLight,
+    onSurface = AppleLabelPrimaryLight,
+    surfaceVariant = AppleSecondaryBackgroundLight,
+    onSurfaceVariant = AppleLabelSecondaryLight,
+    outline = AppleOpaqueSeparatorLight,
+    outlineVariant = AppleSeparatorLight,
+    error = AppleRed,
+    onError = Color.White
 )
 
 @Composable
@@ -56,14 +57,4 @@ fun SalimPhoneTheme(
         typography = Typography,
         content = content
     )
-}
-
-// Backward compatibility alias for template
-@Composable
-fun MyApplicationTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
-    content: @Composable () -> Unit
-) {
-    SalimPhoneTheme(darkTheme = darkTheme, content = content)
 }
